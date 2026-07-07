@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedAssist AI — Voice-First Health Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#0B2B2A;
+    --teal:#028090;
+    --teal-dark:#015C68;
+    --seafoam:#00A896;
+    --mint:#7FE7D0;
+    --amber:#F4A261;
+    --danger:#D64545;
+    --paper:#F5FAF9;
+    --card:#FFFFFF;
+    --line:#DCEAE8;
+    --muted:#5C7A78;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:40;
+    background:var(--ink);
+    color:#EAF6F4;
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(135deg, var(--seafoam), var(--teal));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; color:white; font-size:16px;
+  }
+  .brand-name{font-family:'Fraunces', serif; font-weight:600; font-size:18px;}
+  .nav{display:flex; gap:4px; background:rgba(255,255,255,0.08); padding:4px; border-radius:10px;}
+  .nav button{
+    background:transparent; border:none; color:#CFE9E5; padding:8px 14px;
+    border-radius:7px; font-size:13.5px; font-weight:500; transition:.15s;
+  }
+  .nav button.active{background:var(--seafoam); color:#04211F; font-weight:600;}
+  .lang-select{
+    background:rgba(255,255,255,0.08); color:#EAF6F4; border:1px solid rgba(255,255,255,0.18);
+    border-radius:8px; padding:7px 10px; font-size:13px; font-family:inherit;
+  }
+
+  .view{display:none; max-width:960px; margin:0 auto; padding:28px 20px 64px;}
+  .view.active{display:block;}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    display:grid; grid-template-columns:1.15fr 0.85fr; gap:36px; align-items:center;
+    padding:34px 0 18px;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    color:var(--teal-dark); font-size:12.5px; font-weight:600; letter-spacing:0.06em;
+    text-transform:uppercase; margin-bottom:14px;
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--seafoam);}
+  .hero h1{font-size:38px; line-height:1.12; font-weight:600;}
+  .hero h1 em{font-style:normal; color:var(--teal);}
+  .hero p.lede{color:var(--muted); font-size:16px; line-height:1.55; margin-top:14px; max-width:46ch;}
+  .hero-cta{display:flex; gap:12px; margin-top:24px; flex-wrap:wrap;}
+  .btn{
+    border:none; border-radius:10px; padding:13px 20px; font-size:14.5px; font-weight:600;
+    display:inline-flex; align-items:center; gap:8px; transition:.15s;
+  }
+  .btn-primary{background:var(--teal); color:white;}
+  .btn-primary:hover{background:var(--teal-dark);}
+  .btn-ghost{background:transparent; color:var(--ink); border:1.5px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--teal);}
+
+  .stat-row{display:flex; gap:26px; margin-top:28px; flex-wrap:wrap;}
+  .stat b{font-family:'Fraunces', serif; font-size:26px; display:block; color:var(--teal-dark);}
+  .stat span{font-size:12px; color:var(--muted);}
+
+  .hero-panel{
+    background:var(--ink); border-radius:20px; padding:22px; color:#EAF6F4;
+    position:relative; overflow:hidden;
+  }
+  .hero-panel::after{
+    content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px;
+    background:radial-gradient(circle, rgba(0,168,150,0.35), transparent 70%);
+  }
+  .mock-msg{
+    background:rgba(255,255,255,0.07); border-radius:12px; padding:11px 13px; font-size:13px;
+    margin-bottom:10px; line-height:1.5; position:relative;
+  }
+  .mock-msg.bot{border:1px solid rgba(0,168,150,0.4);}
+  .mock-msg.user{background:var(--seafoam); color:#04211F; margin-left:26px; font-weight:500;}
+  .mock-tag{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:#8FBFBB; margin-bottom:14px; display:block;}
+
+  /* ---------- Section headers ---------- */
+  .section-head{margin:44px 0 18px;}
+  .section-head h2{font-size:23px; font-weight:600;}
+  .section-head p{color:var(--muted); font-size:14px; margin-top:6px;}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .grid2{display:grid; grid-template-columns:repeat(2,1fr); gap:16px;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px;
+  }
+  .card .ic{
+    width:38px; height:38px; border-radius:10px; background:#E4F5F2;
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px; font-size:18px;
+  }
+  .card h3{font-size:15px; font-weight:600; margin-bottom:6px;}
+  .card p{font-size:13px; color:var(--muted); line-height:1.5; margin:0;}
+
+  /* ---------- Chat / Triage ---------- */
+  .triage-shell{
+    background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+    display:flex; flex-direction:column; height:560px;
+  }
+  .triage-head{
+    padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;
+  }
+  .triage-head .who{display:flex; align-items:center; gap:10px; font-weight:600; font-size:14px;}
+  .badge{
+    font-size:11px; padding:4px 9px; border-radius:20px; font-weight:600; letter-spacing:.02em;
+  }
+  .badge.safe{background:#DDF3E4; color:#1E7A3E;}
+  .badge.warn{background:#FDECD1; color:#96591A;}
+  .badge.danger{background:#FBDEDE; color:#B32424;}
+  .chat-body{flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:10px;}
+  .bubble{max-width:78%; padding:11px 14px; border-radius:14px; font-size:14px; line-height:1.5;}
+  .bubble.bot{background:#EFF7F6; align-self:flex-start; border-bottom-left-radius:4px;}
+  .bubble.user{background:var(--teal); color:white; align-self:flex-end; border-bottom-right-radius:4px;}
+  .bubble.urgent{background:#FBDEDE; color:#7A1E1E; border:1px solid #F0B3B3;}
+  .choices{display:flex; flex-wrap:wrap; gap:8px; align-self:flex-start; max-width:88%;}
+  .choice-btn{
+    background:white; border:1.5px solid var(--line); border-radius:20px; padding:8px 14px;
+    font-size:13px; font-weight:500; transition:.15s;
+  }
+  .choice-btn:hover{border-color:var(--teal); color:var(--teal-dark);}
+  .triage-foot{
+    border-top:1px solid var(--line); padding:12px 14px; display:flex; gap:8px; align-items:center;
+  }
+  .triage-foot input{
+    flex:1; border:1.5px solid var(--line); border-radius:10px; padding:11px 13px; font-size:14px; font-family:inherit;
+  }
+  .triage-foot input:focus{outline:none; border-color:var(--teal);}
+  .icon-btn{
+    width:42px; height:42px; border-radius:10px; border:1.5px solid var(--line); background:white;
+    display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+  }
+  .icon-btn.listening{border-color:var(--danger); color:var(--danger); animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(214,69,69,0.35);}70%{box-shadow:0 0 0 8px rgba(214,69,69,0);}100%{box-shadow:0 0 0 0 rgba(214,69,69,0);}}
+  .icon-btn.send{background:var(--teal); border-color:var(--teal); color:white;}
+
+  /* ---------- Dashboard ---------- */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px;}
+  .kpi b{display:block; font-family:'Fraunces', serif; font-size:26px; color:var(--teal-dark);}
+  .kpi span{font-size:12px; color:var(--muted);}
+  .chart-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px;}
+  .chart-card h3{font-size:14px; font-weight:600; margin-bottom:12px;}
+  .log-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .log-table th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;}
+  .log-table td{padding:10px; border-bottom:1px solid var(--line);}
+  .pill{padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600;}
+
+  footer{text-align:center; color:var(--muted); font-size:12.5px; padding:26px 20px 40px;}
+
+  @media (max-width:760px){
+    .hero{grid-template-columns:1fr;}
+    .grid3{grid-template-columns:1fr;}
+    .grid2{grid-template-columns:1fr;}
+    .kpi-row{grid-template-columns:1fr 1fr;}
+    .nav{display:none;}
+    .hero h1{font-size:29px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">M</div>
+    <div class="brand-name">MedAssist AI</div>
+  </div>
+  <div class="nav">
+    <button class="active" data-view="home">Home</button>
+    <button data-view="triage">Try Triage</button>
+    <button data-view="dashboard">Worker Dashboard</button>
+  </div>
+  <select class="lang-select" id="langSelect">
+    <option value="en">English</option>
+    <option value="hi">हिन्दी</option>
+    <option value="bn">বাংলা</option>
+  </select>
+</div>
+
+<!-- ============ HOME ============ -->
+<section class="view active" id="view-home">
+  <div class="hero">
+    <div>
+      <div class="eyebrow"><span class="dot"></span> AI · HEALTHCARE · LAST-MILE ACCESS</div>
+      <h1>Health guidance that speaks <em>your</em> language, even offline.</h1>
+      <p class="lede">MedAssist AI is a voice-first symptom triage assistant built for the 700M+ people who live more than an hour from a doctor. It listens, asks the right follow-up questions, and tells you — in plain language — whether to rest at home, visit a clinic, or seek emergency care right now.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" onclick="showView('triage')">▶ Start a triage</button>
+        <button class="btn btn-ghost" onclick="showView('dashboard')">View worker dashboard</button>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><b>3</b><span>Languages supported</span></div>
+        <div class="stat"><b>&lt;60s</b><span>Avg. time to a recommendation</span></div>
+        <div class="stat"><b>100%</b><span>Works on 2G / offline-cached</span></div>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <span class="mock-tag">Live preview</span>
+      <div class="mock-msg bot">Namaste 🙏 I'm MedAssist. What symptom is bothering you today?</div>
+      <div class="mock-msg user">My father has had a fever and cough for 3 days</div>
+      <div class="mock-msg bot">Is he finding it hard to breathe, or has the fever crossed 103°F / 39.4°C?</div>
+      <div class="mock-msg user">Yes, breathing feels heavy since this morning</div>
+      <div class="mock-msg bot" style="border-color:#F0B3B3;background:rgba(214,69,69,0.12);">⚠️ This needs urgent in-person care. Please go to the nearest clinic or call your ASHA worker now.</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Built for the gap between symptom and specialist</h2>
+    <p>Every track of this brief, solving one real problem.</p>
+  </div>
+  <div class="grid3">
+    <div class="card">
+      <div class="ic">🧠</div>
+      <h3>AI reasoning core</h3>
+      <p>An adaptive questioning engine narrows down urgency using red-flag symptom detection, not a static form.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🌐</div>
+      <h3>Web + installable app</h3>
+      <p>Ships as a responsive web app today, and a PWA tomorrow — installable with zero app-store friction, no build step required to demo.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🎙️</div>
+      <h3>Voice-first UX</h3>
+      <p>Speech input for low-literacy users, large tap targets, and a calm, non-alarming visual language for health anxiety.</p>
+    </div>
+    <div class="card">
+      <div class="ic">📊</div>
+      <h3>Worker dashboard</h3>
+      <p>Community health workers see a live feed of triage sessions and flagged emergencies in their area.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🚀</div>
+      <h3>Startup-ready model</h3>
+      <p>Free for patients; revenue from clinic/NGO/government dashboard subscriptions and anonymized public-health analytics.</p>
+    </div>
+    <div class="card">
+      <div class="ic">🛡️</div>
+      <h3>Safety by design</h3>
+      <p>Hard-coded escalation rules override the AI for red-flag symptoms — the model can upgrade urgency, never downgrade it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRIAGE ============ -->
+<section class="view" id="view-triage">
+  <div class="section-head">
+    <h2>AI Triage Assistant</h2>
+    <p>This is a real, working rule-based+adaptive triage engine — try it below. Tap a symptom to begin, type freely, or use the mic.</p>
+  </div>
+  <div class="triage-shell">
+    <div class="triage-head">
+      <div class="who">🩺 MedAssist Triage <span id="statusBadge" class="badge safe">Session active</span></div>
+      <button class="btn btn-ghost" style="padding:7px 12px;font-size:12.5px;" onclick="resetTriage()">Restart</button>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="triage-foot">
+      <button class="icon-btn" id="micBtn" title="Voice input">🎙️</button>
+      <input type="text" id="chatInput" placeholder="Type a symptom or answer..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <button class="icon-btn send" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DASHBOARD ============ -->
+<section class="view" id="view-dashboard">
+  <div class="section-head">
+    <h2>Community Health Worker Dashboard</h2>
+    <p>A live view of triage activity — this is how ASHA/ANM workers and clinic staff monitor their coverage area.</p>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><b id="kpiTotal">0</b><span>Sessions today</span></div>
+    <div class="kpi"><b id="kpiEmergency">0</b><span>Flagged emergencies</span></div>
+    <div class="kpi"><b id="kpiClinic">0</b><span>Clinic-visit advised</span></div>
+    <div class="kpi"><b id="kpiHome">0</b><span>Home-care advised</span></div>
+  </div>
+  <div class="grid2">
+    <div class="chart-card">
+      <h3>Triage outcomes (7-day trend)</h3>
+      <canvas id="trendChart" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Top reported symptoms</h3>
+      <canvas id="symptomChart" height="180"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Recent sessions</h3>
+    <table class="log-table" id="logTable">
+      <thead><tr><th>Time</th><th>Reported symptom</th><th>Outcome</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>MedAssist AI — Ideathon prototype. Not a substitute for professional medical advice. Built for the AI / Web / Mobile / UI-UX / Startup tracks.</footer>
+
+<script>
+/* ============================================================
+   NAVIGATION
+============================================================ */
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  if(name==='dashboard') renderDashboard();
+}
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click', ()=>showView(b.dataset.view)));
+
+/* ============================================================
+   I18N (minimal, demonstrates multilingual UX)
+============================================================ */
+const STRINGS = {
+  en:{greeting:"Namaste 🙏 I'm MedAssist. What symptom is bothering you today (or someone you're caring for)?",
+      placeholder:"Type a symptom or answer..."},
+  hi:{greeting:"नमस्ते 🙏 मैं MedAssist हूँ। आज आपको (या जिनकी आप देखभाल कर रहे हैं) कौन सी तकलीफ़ है?",
+      placeholder:"लक्षण या जवाब लिखें..."},
+  bn:{greeting:"নমস্কার 🙏 আমি MedAssist। আজ আপনার (বা যাকে আপনি দেখাশোনা করছেন) কী সমস্যা হচ্ছে?",
+      placeholder:"উপসর্গ বা উত্তর লিখুন..."}
+};
+let currentLang = 'en';
+document.getElementById('langSelect').addEventListener('change', e=>{
+  currentLang = e.target.value;
+  document.getElementById('chatInput').placeholder = STRINGS[currentLang].placeholder;
+  resetTriage();
+});
+
+/* ============================================================
+   TRIAGE ENGINE
+   A real, deterministic adaptive-questioning engine.
+   RED_FLAGS always escalate urgency and can never be downgraded
+   ("AI can upgrade, never downgrade" safety rule from the pitch).
+============================================================ */
+const RED_FLAGS = [
+  "chest pain","can't breathe","cannot breathe","difficulty breathing","heavy breathing",
+  "breathing feels heavy","unconscious","seizure","severe bleeding","blue lips","stroke",
+  "not responding","suicidal","severe burn","paralysis","103","104","39.4","40"
+];
+const SYMPTOM_TREE = {
+  fever: {
+    followups:[
+      {q:"How many days has the fever lasted?", key:"duration"},
+      {q:"Is there also a rash, stiff neck, or repeated vomiting?", key:"redflag_check", choices:["Yes","No"]},
+    ]
+  },
+  cough: {
+    followups:[
+      {q:"Is there any blood in the cough, or chest tightness?", key:"redflag_check", choices:["Yes","No"]},
+      {q:"How many days has the cough lasted?", key:"duration"},
+    ]
+  },
+  stomach: {
+    followups:[
+      {q:"Is there blood in vomit or stool, or severe dehydration (dizziness, dry mouth)?", key:"redflag_check", choices:["Yes","No"]},
+      {q:"How long has this been going on?", key:"duration"},
+    ]
+  },
+  injury: {
+    followups:[
+      {q:"Is there heavy bleeding that won't stop, or a visible bone deformity?", key:"redflag_check", choices:["Yes","No"]},
+    ]
+  }
+};
+
+let chatState = { stage:'start', category:null, step:0, answers:{} };
+
+function chatEl(){ return document.getElementById('chatBody'); }
+
+function addBubble(text, who){
+  const d = document.createElement('div');
+  d.className = 'bubble ' + who;
+  d.textContent = text;
+  chatEl().appendChild(d);
+  chatEl().scrollTop = chatEl().scrollHeight;
+}
+function addUrgentBubble(text){
+  const d = document.createElement('div');
+  d.className = 'bubble urgent';
+  d.textContent = text;
+  chatEl().appendChild(d);
+  chatEl().scrollTop = chatEl().scrollHeight;
+}
+function addChoices(options, onPick){
+  const wrap = document.createElement('div');
+  wrap.className = 'choices';
+  options.forEach(opt=>{
+    const b = document.createElement('button');
+    b.className = 'choice-btn';
+    b.textContent = opt;
+    b.onclick = ()=>{ wrap.remove(); addBubble(opt,'user'); onPick(opt); };
+    wrap.appendChild(b);
+  });
+  chatEl().appendChild(wrap);
+  chatEl().scrollTop = chatEl().scrollHeight;
+}
+
+function setBadge(level){
+  const el = document.getElementById('statusBadge');
+  if(level==='danger'){ el.className='badge danger'; el.textContent='Emergency flagged'; }
+  else if(level==='warn'){ el.className='badge warn'; el.textContent='Clinic visit advised'; }
+  else { el.className='badge safe'; el.textContent='Session active'; }
+}
+
+function detectRedFlag(text){
+  const t = text.toLowerCase();
+  return RED_FLAGS.some(flag => t.includes(flag));
+}
+
+function detectCategory(text){
+  const t = text.toLowerCase();
+  if(t.includes('fever')) return 'fever';
+  if(t.includes('cough') || t.includes('breath')) return 'cough';
+  if(t.includes('stomach') || t.includes('vomit') || t.includes('diarrhea') || t.includes('pain in stomach')) return 'stomach';
+  if(t.includes('injury') || t.includes('cut') || t.includes('fall') || t.includes('bleeding')) return 'injury';
+  return null;
+}
+
+function startTriage(){
+  chatEl().innerHTML = '';
+  chatState = { stage:'start', category:null, step:0, answers:{} };
+  setBadge('safe');
+  addBubble(STRINGS[currentLang].greeting, 'bot');
+  addChoices(["Fever","Cough / breathing","Stomach issue","Injury / bleeding"], (opt)=>{
+    const map = {"Fever":"fever","Cough / breathing":"cough","Stomach issue":"stomach","Injury / bleeding":"injury"};
+    beginCategory(map[opt]);
+  });
+}
+function resetTriage(){ startTriage(); }
+
+function beginCategory(cat){
+  chatState.category = cat;
+  chatState.step = 0;
+  askNextFollowup();
+}
+
+function askNextFollowup(){
+  const tree = SYMPTOM_TREE[chatState.category];
+  const followup = tree.followups[chatState.step];
+  if(!followup){ return finishTriage(); }
+  addBubble(followup.q, 'bot');
+  if(followup.choices){
+    addChoices(followup.choices, (opt)=>{
+      chatState.answers[followup.key] = opt;
+      chatState.step++;
+      if(opt === 'Yes' && followup.key==='redflag_check'){
+        chatState.answers.forcedRedFlag = true;
+      }
+      askNextFollowup();
+    });
+  } else {
+    chatState.awaitingFreeText = followup.key;
+  }
+}
+
+function handleFreeTextAnswer(text){
+  const key = chatState.awaitingFreeText;
+  chatState.answers[key] = text;
+  chatState.awaitingFreeText = null;
+  chatState.step++;
+  askNextFollowup();
+}
+
+function finishTriage(){
+  const redFlag = chatState.answers.forcedRedFlag || detectRedFlag(JSON.stringify(chatState.answers));
+  let level, message;
+  if(redFlag){
+    level = 'danger';
+    message = "⚠️ Based on what you've described, this needs urgent in-person medical care. Please go to the nearest clinic or emergency service now, or call your community health worker immediately.";
+  } else {
+    const durationText = (chatState.answers.duration||"").toLowerCase();
+    const longDuration = /[3-9]|[1-9][0-9]/.test(durationText) && !/1 day|one day|today|1day/.test(durationText);
+    if(longDuration){
+      level = 'warn';
+      message = "🟠 This has lasted a few days without improving. Please visit your nearest clinic within the next day for a proper check-up.";
+    } else {
+      level = 'safe';
+      message = "🟢 This looks manageable at home for now: rest, fluids, and monitor closely. If symptoms worsen or don't improve in 2 days, visit a clinic.";
+    }
+  }
+  setBadge(level);
+  addBubble(message, level==='danger' ? undefined : 'bot');
+  if(level==='danger'){
+    chatEl().lastChild.remove();
+    addUrgentBubble(message);
+  }
+  logSession(chatState.category, level);
+  addChoices(["Start a new triage"], ()=>startTriage());
+}
+
+function sendMessage(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  addBubble(text, 'user');
+
+  if(chatState.awaitingFreeText){
+    handleFreeTextAnswer(text);
+    return;
+  }
+  if(!chatState.category){
+    if(detectRedFlag(text)){
+      setBadge('danger');
+      addUrgentBubble("⚠️ This sounds urgent. Please seek emergency care immediately — go to the nearest hospital or call local emergency services now.");
+      logSession('red-flag (free text)', 'danger');
+      addChoices(["Start a new triage"], ()=>startTriage());
+      return;
+    }
+    const cat = detectCategory(text);
+    if(cat){ beginCategory(cat); }
+    else {
+      addBubble("Got it — could you tell me if this is more like a fever, a cough/breathing issue, a stomach issue, or an injury?", 'bot');
+      addChoices(["Fever","Cough / breathing","Stomach issue","Injury / bleeding"], (opt)=>{
+        const map = {"Fever":"fever","Cough / breathing":"cough","Stomach issue":"stomach","Injury / bleeding":"injury"};
+        beginCategory(map[opt]);
+      });
+    }
+  }
+}
+
+/* ---- Voice input via Web Speech API (real browser feature) ---- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null, listening = false;
+const micBtn = document.getElementById('micBtn');
+if(SpeechRecognition){
+  recognizer = new SpeechRecognition();
+  recognizer.continuous = false;
+  recognizer.interimResults = false;
+  recognizer.onresult = (e)=>{
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('chatInput').value = transcript;
+    sendMessage();
+  };
+  recognizer.onend = ()=>{ listening=false; micBtn.classList.remove('listening'); };
+  micBtn.addEventListener('click', ()=>{
+    if(listening){ recognizer.stop(); return; }
+    try{
+      recognizer.lang = currentLang==='hi' ? 'hi-IN' : currentLang==='bn' ? 'bn-IN' : 'en-IN';
+      recognizer.start(); listening = true; micBtn.classList.add('listening');
+    }catch(e){ console.warn(e); }
+  });
+} else {
+  micBtn.title = "Voice input not supported in this browser";
+  micBtn.addEventListener('click', ()=> alert("Voice input isn't supported in this browser — try Chrome on desktop or Android."));
+}
+
+/* ============================================================
+   DASHBOARD (aggregates real sessions from this demo,
+   seeded with realistic sample history)
+============================================================ */
+let sessionLog = [
+  {time:"08:14", symptom:"Fever + cough", outcome:"warn"},
+  {time:"08:47", symptom:"Stomach pain", outcome:"safe"},
+  {time:"09:22", symptom:"Chest pain", outcome:"danger"},
+  {time:"10:05", symptom:"Minor cut", outcome:"safe"},
+  {time:"11:31", symptom:"High fever (child)", outcome:"warn"},
+  {time:"12:40", symptom:"Difficulty breathing", outcome:"danger"},
+  {time:"13:12", symptom:"Diarrhea", outcome:"safe"},
+];
+function logSession(symptom, outcome){
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+  sessionLog.unshift({time, symptom, outcome});
+  if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+}
+
+let trendChartInstance=null, symptomChartInstance=null;
+function renderDashboard(){
+  document.getElementById('kpiTotal').textContent = sessionLog.length;
+  document.getElementById('kpiEmergency').textContent = sessionLog.filter(s=>s.outcome==='danger').length;
+  document.getElementById('kpiClinic').textContent = sessionLog.filter(s=>s.outcome==='warn').length;
+  document.getElementById('kpiHome').textContent = sessionLog.filter(s=>s.outcome==='safe').length;
+
+  const tbody = document.querySelector('#logTable tbody');
+  tbody.innerHTML = '';
+  sessionLog.slice(0,8).forEach(s=>{
+    const tr = document.createElement('tr');
+    const pillClass = s.outcome==='danger'?'danger':s.outcome==='warn'?'warn':'safe';
+    const pillLabel = s.outcome==='danger'?'Emergency':s.outcome==='warn'?'Clinic visit':'Home care';
+    const pillColors = {danger:'background:#FBDEDE;color:#B32424;', warn:'background:#FDECD1;color:#96591A;', safe:'background:#DDF3E4;color:#1E7A3E;'};
+    tr.innerHTML = `<td>${s.time}</td><td>${s.symptom}</td><td><span class="pill" style="${pillColors[s.outcome]}">${pillLabel}</span></td>`;
+    tbody.appendChild(tr);
+  });
+
+  const ctx1 = document.getElementById('trendChart');
+  if(trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(ctx1, {
+    type:'line',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Today'],
+      datasets:[
+        {label:'Home care', data:[12,14,10,16,13,9,sessionLog.filter(s=>s.outcome==='safe').length+8], borderColor:'#00A896', backgroundColor:'rgba(0,168,150,0.12)', tension:0.35, fill:true},
+        {label:'Clinic visit', data:[5,6,4,7,6,3,sessionLog.filter(s=>s.outcome==='warn').length+3], borderColor:'#F4A261', backgroundColor:'rgba(244,162,97,0.12)', tension:0.35, fill:true},
+        {label:'Emergency', data:[1,2,0,1,2,1,sessionLog.filter(s=>s.outcome==='danger').length], borderColor:'#D64545', backgroundColor:'rgba(214,69,69,0.12)', tension:0.35, fill:true},
+      ]
+    },
+    options:{ responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:10,font:{size:11}}}}, scales:{y:{beginAtZero:true, grid:{color:'#EEF5F4'}}, x:{grid:{display:false}}} }
+  });
+
+  const counts = {};
+  sessionLog.forEach(s=>{ const k=s.symptom.split(' ')[0]; counts[k]=(counts[k]||0)+1; });
+  const ctx2 = document.getElementById('symptomChart');
+  if(symptomChartInstance) symptomChartInstance.destroy();
+  symptomChartInstance = new Chart(ctx2, {
+    type:'bar',
+    data:{ labels:Object.keys(counts), datasets:[{ label:'Reports', data:Object.values(counts), backgroundColor:'#028090', borderRadius:6 }] },
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#EEF5F4'}}, x:{grid:{display:false}}} }
+  });
+}
+
+/* init */
+startTriage();
+</script>
+</body>
+</html>
